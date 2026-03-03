@@ -233,9 +233,41 @@ async def root():
 # ===========================================================================
 # Router registration (uncomment as each phase is implemented)
 # ===========================================================================
-# Phase 2.6 — Inference endpoint
-# from api.routers.infer import router as infer_router
-# app.include_router(infer_router, prefix="/v1", tags=["Inference"])
+
+# Phase 2.3 — Import providers package at startup.
+# If any provider file has a syntax error, Uvicorn will fail to start here
+# and /health will not respond — making this the implicit import test.
+from api.providers import PROVIDER_MAP  # noqa: E402
+from api.providers.base import ProviderResponse, calculate_cost_cents  # noqa: E402
+from api.providers.retry import provider_retry  # noqa: E402
+
+logger.info("Provider map loaded: %s", list(PROVIDER_MAP.keys()))
+
+
+@app.get(
+    "/v1/providers",
+    tags=["Diagnostics"],
+    summary="List registered providers and their status.",
+)
+async def list_providers():
+    """
+    Diagnostic endpoint — returns the registered PROVIDER_MAP keys and
+    confirms the provider abstraction layer loaded correctly.
+    Safe to call in dev. Disabled automatically in prod via settings.
+    """
+    if settings.environment != "dev":
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Not found.")
+    return {
+        "providers": list(PROVIDER_MAP.keys()),
+        "phase":     "2.3 — Provider Abstraction Layer",
+        "note":      "All providers target external APIs — no local models (tradeoffs-info §5).",
+    }
+
+
+# Phase 2.6 — Inference endpoint (ACTIVE)
+from api.routers.infer import router as infer_router  # noqa: E402
+app.include_router(infer_router, prefix="/v1", tags=["Inference"])
 
 # Phase 4.2 / 4.3 — Admin endpoints (chaos + load shed)
 # from api.routers.admin import router as admin_router
