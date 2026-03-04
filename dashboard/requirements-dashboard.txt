@@ -1,0 +1,15 @@
+# dashboard/requirements-dashboard.txt
+# Streamlit dashboard dependencies.
+# CRITICAL (TODO §6.1 — Streamlit Sync Trap):
+#   Use psycopg2-binary (synchronous) exclusively. Do NOT add asyncpg here.
+#   asyncpg inside Streamlit's sync context via asyncio.run() creates a new
+#   event loop on every page reload, which freezes the UI and exhausts the
+#   Neon free-tier connection pool under 10k-row queries.
+
+streamlit==1.41.1
+plotly==5.24.1          # Pareto Scatter3D, regret curves (tradeoffs-info §4)
+numpy==2.0.2            # Vectorized Pareto dominance filter (no Python loops)
+pandas==2.2.3           # DataFrames for inference_log queries + read_sql
+psycopg2-binary==2.9.10 # Synchronous Postgres driver for Streamlit
+redis==5.2.1            # MAB weight inspector reads from DB 0 (REDIS_URL_MAB)
+python-dotenv==1.0.1    # Load .env inside streamlit run without uvicorn
