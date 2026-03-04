@@ -1,0 +1,22 @@
+[
+  {"output_text": "The capital of France is Paris, which has been the country's capital since the late 10th century."},
+  {"output_text": "Python is an interpreted, high-level programming language known for its clear syntax and readability."},
+  {"output_text": "Machine learning is a subset of artificial intelligence that enables systems to learn from data."},
+  {"output_text": "The speed of light in a vacuum is approximately 299,792,458 metres per second."},
+  {"output_text": "Water is composed of two hydrogen atoms bonded to one oxygen atom, giving it the chemical formula H2O."},
+  {"output_text": "The Great Wall of China stretches over 21,000 kilometres across northern China."},
+  {"output_text": "Photosynthesis is the process by which plants use sunlight, water and carbon dioxide to produce oxygen and energy."},
+  {"output_text": "The human genome contains approximately 3 billion base pairs of DNA encoded across 23 chromosome pairs."},
+  {"output_text": "Newton's first law states that an object at rest stays at rest unless acted upon by an external force."},
+  {"output_text": "The Internet is a global network of computers that communicate using standardised protocols such as TCP/IP."},
+  {"output_text": "Artificial intelligence refers to the simulation of human intelligence processes by computer systems."},
+  {"output_text": "Blockchain is a distributed ledger technology that records transactions across multiple nodes securely."},
+  {"output_text": "The mitochondria are often called the powerhouse of the cell because they generate ATP through cellular respiration."},
+  {"output_text": "Docker is a platform that uses containerisation to package applications and their dependencies together."},
+  {"output_text": "REST APIs use HTTP methods such as GET, POST, PUT, and DELETE to interact with resources over the web."},
+  {"output_text": "SQL stands for Structured Query Language and is used to manage and query relational databases."},
+  {"output_text": "The Eiffel Tower was built between 1887 and 1889 and stands 330 metres tall in Paris, France."},
+  {"output_text": "Redis is an in-memory data structure store that supports strings, hashes, lists, sets, and sorted sets."},
+  {"output_text": "Gradient descent is an optimisation algorithm used to minimise the loss function in machine learning models."},
+  {"output_text": "Kubernetes orchestrates containerised applications across clusters and manages deployment, scaling, and failover."}
+]

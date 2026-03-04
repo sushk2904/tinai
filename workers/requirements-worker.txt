@@ -1,0 +1,20 @@
+# workers/requirements-worker.txt
+# Celery-specific dependencies for the worker and beat services.
+# These are installed ON TOP OF api/requirements.txt in Dockerfile.worker.
+# 
+# Phase 3 additions (drift detection) will add `evidently` here.
+# Phase 5 additions (observability) will add `langfuse` and `arize` here.
+
+celery==5.4.0
+redis==5.2.1          # Celery Redis broker transport
+celery[redis]==5.4.0  # Pulls in kombu[redis] + amqp
+
+# Periodic task scheduling (beat)
+# celery[beat] extras are included in the base celery package above.
+
+# Nightly drift analysis (Phase 3.4)
+evidently==0.4.33
+
+# Observability platforms (Phase 5) — uncomment when implementing Phase 5
+# langfuse==2.57.6
+# arize==7.30.0
