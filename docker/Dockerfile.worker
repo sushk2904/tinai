@@ -1,0 +1,57 @@
+# ==============================================================================
+# docker/Dockerfile.worker
+# TINAI Celery Worker + Beat Scheduler
+#
+# Shares the SAME base image and requirements as the API image.
+# This is intentional: workers import api.* modules (models, config, redis_keys)
+# so they must have the same Python environment.
+#
+# The command is overridden at the docker-compose level:
+#   worker service → celery -A workers.celery_app worker ...
+#   beat   service → celery -A workers.celery_app beat  ...
+# ==============================================================================
+
+FROM python:3.11-slim AS base
+
+# -- Environment hygiene -------------------------------------------------------
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# -- System dependencies -------------------------------------------------------
+# gcc / build-essential: compile asyncpg C extensions
+# libpq-dev:             PostgreSQL client library (asyncpg runtime dep)
+# curl:                  healthcheck probes inside container
+# Note: evidently (Phase 3.4 drift analysis) may pull in scipy which needs
+#       additional libs — handled here so they are cached in this layer.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    gcc \
+    build-essential \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# -- Python dependencies -------------------------------------------------------
+# Worker requires the full API requirements PLUS Celery-specific packages.
+# Both requirements files are copied first to maximise Docker layer cache hits.
+COPY api/requirements.txt ./requirements-api.txt
+COPY workers/requirements-worker.txt ./requirements-worker.txt
+RUN pip install --no-cache-dir -r requirements-api.txt \
+    && pip install --no-cache-dir -r requirements-worker.txt
+
+# -- Application source --------------------------------------------------------
+# Both api/ and workers/ are needed because Celery tasks import api.* internals.
+COPY api/ ./api/
+COPY workers/ ./workers/
+
+# -- Default command (overridden per service in docker-compose.yml) -------------
+# Running the worker is the default; the beat service overrides this CMD.
+CMD ["celery", "-A", "workers.celery_app", "worker", \
+    "--loglevel=info", \
+    "--concurrency=4", \
+    "-E", \
+    "--queues=default,telemetry,safety,drift,budget,cache,observability"]

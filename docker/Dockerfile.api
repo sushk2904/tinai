@@ -1,0 +1,70 @@
+# ==============================================================================
+# docker/Dockerfile.api
+# TINAI FastAPI + Uvicorn — Data Plane
+#
+# Base: python:3.11-slim (reproducible, minimal attack surface)
+# Build layer dependencies (gcc / libpq) are separated from the app layer
+# so the expensive compile step is cached and not re-run on code changes.
+# ==============================================================================
+
+FROM python:3.11-slim AS base
+
+# -- Environment hygiene -------------------------------------------------------
+# PYTHONDONTWRITEBYTECODE: keeps the image free of .pyc clutter
+# PYTHONUNBUFFERED:        ensures logs stream to Docker stdout immediately
+# PIP_NO_CACHE_DIR:        saves ~20MB in final layer
+# PIP_DISABLE_PIP_VERSION_CHECK: removes the "upgrade pip" noise in CI logs
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# -- System dependencies -------------------------------------------------------
+# gcc + build-essential: required to compile asyncpg's C extensions on arm64/amd64
+# libpq-dev:             required for psycopg2 if ever pulled in transitively
+# curl:                  used by the Docker healthcheck probe
+# Layer is cached separately from pip install to prevent a full recompile when
+# requirements.txt changes.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    gcc \
+    build-essential \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# -- Python dependencies -------------------------------------------------------
+# Copy requirements first (before source) so Docker cache is not invalidated
+# by every source file change.
+COPY api/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# -- Application source --------------------------------------------------------
+# Copy the entire repo root so that the api/ package and any shared modules
+# (e.g., workers/ for type-checking imports) are available at runtime.
+COPY api/ ./api/
+COPY workers/ ./workers/
+
+# -- Runtime -------------------------------------------------------------------
+# Expose the port documented in docker-compose; value is informational only.
+EXPOSE 8000
+
+# Uvicorn flags for production-grade operation:
+#   --workers 4      : matches typical 2*CPU+1 formula for a 2-core container
+#   --loop uvloop    : faster event loop (pulled in by uvicorn[standard])
+#   --http httptools : faster HTTP parser (pulled in by uvicorn[standard])
+#   --proxy-headers  : trust X-Forwarded-* from a reverse proxy / load balancer
+#   --log-level info : structured logs visible in docker compose logs
+#
+# IMPORTANT: The module path is api.main:app because WORKDIR=/app and the
+# FastAPI instance lives in /app/api/main.py.
+CMD ["uvicorn", "api.main:app", \
+    "--host", "0.0.0.0", \
+    "--port", "8000", \
+    "--workers", "4", \
+    "--loop", "uvloop", \
+    "--http", "httptools", \
+    "--proxy-headers", \
+    "--log-level", "info"]

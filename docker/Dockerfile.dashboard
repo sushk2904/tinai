@@ -1,0 +1,59 @@
+# ==============================================================================
+# docker/Dockerfile.dashboard
+# TINAI Streamlit Pareto Dashboard
+#
+# Intentionally a SEPARATE image from the API:
+#   • Uses psycopg2-binary (sync) NOT asyncpg — Streamlit is synchronous.
+#     Running asyncpg inside Streamlit's sync context via asyncio.run() creates
+#     a new event loop on every page reload and exhausts the Neon connection pool
+#     at 10k+ rows (TODO §6.1 Streamlit Sync Trap).
+#   • Does NOT include Celery or uvicorn — keeps the image lean.
+#   • Plotly + NumPy for Pareto frontier computation (tradeoffs-info §4).
+# ==============================================================================
+
+FROM python:3.11-slim AS base
+
+# -- Environment hygiene -------------------------------------------------------
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Streamlit-specific: disable telemetry and browser auto-launch in container env
+ENV STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
+    STREAMLIT_SERVER_HEADLESS=true \
+    STREAMLIT_SERVER_PORT=8501 \
+    STREAMLIT_SERVER_ADDRESS=0.0.0.0
+
+WORKDIR /app
+
+# -- System dependencies -------------------------------------------------------
+# libpq-dev: required by psycopg2-binary to link against the Postgres C library
+# curl:      healthcheck probe
+# Note: psycopg2-binary bundles its own libpq; libpq-dev is a belt-and-suspenders
+#       guard for environments where the binary wheel isn't available.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# -- Python dependencies -------------------------------------------------------
+COPY dashboard/requirements-dashboard.txt ./requirements-dashboard.txt
+RUN pip install --no-cache-dir -r requirements-dashboard.txt
+
+# -- Application source --------------------------------------------------------
+COPY dashboard/ ./dashboard/
+
+# -- Expose Streamlit port (informational; mapped in docker-compose) ------------
+EXPOSE 8501
+
+# -- Entrypoint ----------------------------------------------------------------
+# Force Streamlit to use /app/dashboard/app.py as the entry point.
+# --server.fileWatcherType none: disables inotify-based hot-reload in containers
+#   (prevents ENOSPC errors when inotify limits are hit in constrained envs).
+CMD ["streamlit", "run", "dashboard/app.py", \
+    "--server.port=8501", \
+    "--server.address=0.0.0.0", \
+    "--server.fileWatcherType=none", \
+    "--logger.level=info"]
