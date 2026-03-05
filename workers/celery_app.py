@@ -31,6 +31,7 @@ celery_app = Celery(
         "workers.tasks.budget",
         "workers.tasks.cache",
         "workers.tasks.price_feed",
+        "workers.tasks.observability",
     ],
 )
 
