@@ -16,5 +16,5 @@ celery[redis]==5.4.0  # Pulls in kombu[redis] + amqp
 evidently==0.4.33
 
 # Observability platforms (Phase 5) — uncomment when implementing Phase 5
-# langfuse==2.57.6
+langfuse==2.57.6
 # arize==7.30.0
