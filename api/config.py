@@ -149,8 +149,20 @@ class Settings(BaseSettings):
     # `rate_limit_requests` tokens are allowed per `rate_limit_window_seconds`
     # window per client key. Enforced by api/rate_limiter.py via Redis INCR.
     # -------------------------------------------------------------------------
-    rate_limit_requests:       int = Field(100, ge=1, description="Max requests per window")
-    rate_limit_window_seconds: int = Field(60,  ge=1, description="Rate-limit window (s)")
+    rate_limit_requests:       int   = Field(100,  ge=1,   description="Max requests per window")
+    rate_limit_window_seconds: int   = Field(60,   ge=1,   description="Rate-limit window (s)")
+
+    # -------------------------------------------------------------------------
+    # Sampling rates — fraction of requests that trigger background evaluation
+    # -------------------------------------------------------------------------
+    # quality_sample_rate: fraction of requests that trigger LLM-as-judge scoring
+    # via run_quality_eval → update_mab_weights with a real 0.0–1.0 quality score.
+    # Set lower if OpenRouter rate limits are hit; set higher for richer MAB signal.
+    quality_sample_rate: float = Field(0.30, ge=0.0, le=1.0, description="Fraction of requests to quality-score via LLM judge")
+
+    # safety_sample_rate: fraction of requests checked for SAFE/UNSAFE verdict.
+    safety_sample_rate:  float = Field(0.10, ge=0.0, le=1.0, description="Fraction of requests to run safety check")
+
 
     # -------------------------------------------------------------------------
     # asyncpg Connection Pool sizing
