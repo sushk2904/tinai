@@ -13,8 +13,8 @@ from pydantic import BaseModel, Field
 
 from api.auth import verify_api_key
 from api.chaos import ChaosMode
-from api.redis_client import RedisDep
-from api.redis_keys import PROVIDERS, key_chaos_mode
+from api.dependencies import RedisDep
+from api.redis_keys import PROVIDERS, LOAD_SHED_FLAG, key_chaos_mode
 
 router = APIRouter(
     prefix="/admin",
@@ -61,4 +61,25 @@ async def inject_chaos_endpoint(body: ChaosRequest, redis: RedisDep):
         "provider": body.provider,
         "mode": body.mode.value,
         "message": f"Chaos mode '{body.mode.value}' active for {body.provider}."
+    }
+
+class LoadShedRequest(BaseModel):
+    active: bool = Field(..., description="True to block all traffic, False to resume.")
+
+@router.post("/load-shedding", summary="Toggle Progressive Load Shedding")
+async def toggle_load_shedding(body: LoadShedRequest, redis: RedisDep):
+    """
+    Toggles the global load shedding switch in Redis.
+    If active, the API will aggressively reject all new inference requests with an HTTP 503.
+    """
+    if body.active:
+        # 1 hour expiration so it auto-recovers if we forget
+        await redis.set(LOAD_SHED_FLAG, "1", ex=3600)
+    else:
+        await redis.delete(LOAD_SHED_FLAG)
+    
+    return {
+        "status": "success",
+        "load_shedding_active": body.active,
+        "message": f"Global Load Shedding set to {body.active}"
     }
