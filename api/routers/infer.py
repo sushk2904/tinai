@@ -86,6 +86,13 @@ async def infer(
 ) -> InferResponse:
     request_id = request.state.request_id
 
+    # --- Step 1.5: Load Shedding --------------------------------------------
+    from api.load_shedder import should_shed
+    if await should_shed(redis):
+        from fastapi import HTTPException
+        logger.warning("Request %s Rejected — Load Shedding ACTIVE", request_id)
+        raise HTTPException(status_code=503, detail="Service Unavailable: System Overloaded")
+
     # --- Step 2: Rate limit check -------------------------------------------
     from api.rate_limiter import check_rate_limit
     await check_rate_limit(client_key, redis)
@@ -143,6 +150,7 @@ async def infer(
         model=body.model or "",
         timeout=settings.llm_timeout_seconds,
         price_multiplier=price_multiplier,
+        redis=redis,
     )
 
     # --- Step 7: Return response to client -----------------------------------
@@ -230,6 +238,7 @@ def _fire_post_response_tasks(
         from workers.tasks.telemetry import log_inference_telemetry, update_mab_weights
         from workers.tasks.cache     import populate_cache
         from workers.tasks.budget    import deduct_budget
+        from workers.tasks.observability import send_langfuse_trace
 
         payload = {
             "request_id":  request_id,
@@ -307,6 +316,18 @@ def _fire_post_response_tasks(
                 prompt,
                 provider_response.output_text,
                 request_id,
+            )
+
+        # ── Observability Tracing ────────────────────────────────────────────
+        if provider_response.output_text and not provider_response.error_flag:
+            send_langfuse_trace.delay(
+                request_id,
+                prompt,
+                provider_response.output_text,
+                provider_response.provider,
+                provider_response.latency_ms,
+                provider_response.cost_cents,
+                provider_response.model or "",
             )
 
     except Exception as e:
