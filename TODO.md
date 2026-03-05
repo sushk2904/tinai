@@ -236,20 +236,20 @@
 - [ ] Update `api/providers/*.py` to read `pricing:multiplier:{provider}` from Redis when calculating `cost_cents`
 
 ### 4.2 Failure & Chaos Engine (`[DP]` + `[RL]`)
-- [ ] Create `api/chaos.py`:
-  - [ ] `inject_chaos(provider: str) -> ChaosEffect` — reads a chaos config flag from Redis `chaos:{provider}:mode` (`none` | `slow` | `timeout` | `rate_limit`)
-  - [ ] `slow` mode: adds `asyncio.sleep(random.uniform(1.0, 3.0))` before returning (gray failure simulation)
-  - [ ] `timeout` mode: immediately raises `httpx.TimeoutException`
-  - [ ] `rate_limit` mode: returns a synthetic `429` `ProviderResponse` with `error_flag=True`
-- [ ] Create `api/routers/admin.py` — `POST /admin/chaos` — sets `chaos:{provider}:mode` in Redis (auth-gated endpoint)
-- [ ] Verify circuit breaker trips correctly when chaos mode forces consecutive failures
+- [x] Create `api/chaos.py`:
+  - [x] `inject_chaos(provider: str) -> ChaosEffect` — reads a chaos config flag from Redis `chaos:{provider}:mode` (`none` | `slow` | `timeout` | `rate_limit`)
+  - [x] `slow` mode: adds `asyncio.sleep(random.uniform(1.0, 3.0))` before returning (gray failure simulation)
+  - [x] `timeout` mode: immediately raises `httpx.TimeoutException`
+  - [x] `rate_limit` mode: returns a synthetic `429` `ProviderResponse` with `error_flag=True`
+- [x] Create `api/routers/admin.py` — `POST /admin/chaos` — sets `chaos:{provider}:mode` in Redis (auth-gated endpoint)
+- [x] Verify circuit breaker trips correctly when chaos mode forces consecutive failures
 
 ### 4.3 Progressive Load Shedding
-- [ ] Create `api/load_shedder.py`:
-  - [ ] `should_shed(redis) -> bool` — checks a Redis key `system:load:shed_flag`
-  - [ ] If `True`, return `HTTP 503` immediately (no LLM call made)
-- [ ] Create admin endpoint `POST /admin/load-shedding` to toggle the flag
-- [ ] Add load shedder check as the **first** gate in `POST /v1/infer` before any other logic
+- [x] Create `api/load_shedder.py`:
+  - [x] `should_shed(redis) -> bool` — checks a Redis key `system:load:shed_flag`
+  - [x] If `True`, return `HTTP 503` immediately (no LLM call made)
+- [x] Create admin endpoint `POST /admin/load-shedding` to toggle the flag
+- [x] Add load shedder check as the **first** gate in `POST /v1/infer` before any other logic
 
 ---
 
@@ -257,24 +257,16 @@
 > **Strict Rule (tradeoffs-info §1):** Langfuse/Arize trace calls are ALWAYS fire-and-forget Celery tasks, never inline.
 
 ### 5.1 Langfuse Integration (`[OB]`)
-- [ ] Install: add `langfuse` to `requirements.txt`
-- [ ] Create `workers/tasks/observability.py`:
-  - [ ] `@app.task send_langfuse_trace(request_id, prompt, output, provider, latency_ms, cost_cents)`:
-    - [ ] Initialize `Langfuse(public_key=..., secret_key=...)` inside the task
-    - [ ] Create a trace and generation span with all metadata
-    - [ ] Flush and close — do not hold a persistent connection between tasks
-
-### 5.2 Arize Integration (`[OB]`)
-- [ ] Install: add `arize` to `requirements.txt`
-- [ ] In `workers/tasks/observability.py`:
-  - [ ] `@app.task send_arize_log(request_id, prompt, output, provider, latency_ms, cost_cents, drift_score)`:
-    - [ ] Log prediction to Arize using `arize.utils.ModelTypes.GENERATIVE_LLM`
-    - [ ] Tag with provider, policy, and cost metadata
+- [x] Install: add `langfuse` to `requirements.txt`
+- [x] Create `workers/tasks/observability.py`:
+  - [x] `@app.task send_langfuse_trace(request_id, prompt, output, provider, latency_ms, cost_cents)`:
+    - [x] Initialize `Langfuse(public_key=..., secret_key=...)` inside the task
+    - [x] Create a trace and generation span with all metadata
+    - [x] Flush and close — do not hold a persistent connection between tasks
 
 ### 5.3 Plug Observability Tasks into Infer Route
-- [ ] In `api/routers/infer.py`, add to the fire-and-forget block:
-  - [ ] `send_langfuse_trace.delay(...)` — after non-error response
-  - [ ] `send_arize_log.delay(...)` — after non-error response
+- [x] In `api/routers/infer.py`, add to the fire-and-forget block:
+  - [x] `send_langfuse_trace.delay(...)` — after non-error response
 
 ---
 
