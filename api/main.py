@@ -270,5 +270,5 @@ from api.routers.infer import router as infer_router  # noqa: E402
 app.include_router(infer_router, prefix="/v1", tags=["Inference"])
 
 # Phase 4.2 / 4.3 — Admin endpoints (chaos + load shed)
-# from api.routers.admin import router as admin_router
-# app.include_router(admin_router, prefix="/admin", tags=["Admin"])
+from api.routers.admin import router as admin_router
+app.include_router(admin_router)
