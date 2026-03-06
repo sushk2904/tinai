@@ -181,21 +181,12 @@ with right_cell:
     with tab2:
         st.write("#### Inference Latency 1 Min Time (Including Gray Failures)")
         if not filtered_df.empty:
-            # Calculate the time window for the last 1 minute to match the section title
-            latest_time = filtered_df['created_at'].max()
-            one_min_ago = latest_time - pd.Timedelta(minutes=1)
-
             chart = (
                 alt.Chart(filtered_df)
                 .mark_circle(size=30, opacity=0.5)
                 .encode(
-                    x=alt.X('created_at:T', 
-                            title="Time (HH:MM:SS)", 
-                            scale=alt.Scale(domain=[one_min_ago, latest_time]),
-                            axis=alt.Axis(format='%H:%M:%S', labelAngle=-45, grid=True)),
-                    y=alt.Y('latency_ms:Q', 
-                            title='Latency (ms)', 
-                            scale=alt.Scale(type="symlog", domain=[-200, 5000])),
+                    x=alt.X('created_at:T', title="Time (HH:MM:SS)", axis=alt.Axis(format='%H:%M:%S', labelAngle=-45, grid=True)),
+                    y=alt.Y('latency_ms:Q', title='Latency (ms)', scale=alt.Scale(type="symlog")),
                     color=alt.Color('provider:N', legend=alt.Legend(orient="bottom")),
                     tooltip=['request_id', 'provider', 'latency_ms', 'error_flag', 'policy']
                 )
