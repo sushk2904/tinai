@@ -13,3 +13,4 @@ pandas==2.2.3           # DataFrames for inference_log queries + read_sql
 psycopg2-binary==2.9.10 # Synchronous Postgres driver for Streamlit
 redis==5.2.1            # MAB weight inspector reads from DB 0 (REDIS_URL_MAB)
 python-dotenv==1.0.1    # Load .env inside streamlit run without uvicorn
+altair==5.4.1           # Declarative visualization (used in Latency & Chaos tracking)
