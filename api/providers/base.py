@@ -71,29 +71,30 @@ class InferenceRequest:
 # ---------------------------------------------------------------------------
 # Pricing table — USD cents per token (tradeoffs-info §3)
 #
-# Empirically verified from benchmark test (2026-03-03):
-#   Prompt: "Explain mutex vs semaphore"
-#   Groq   llama-3.3-70b-versatile   → 554 tokens → 0.0355¢  total
-#   OR     llama-3.3-70b-instruct    → 489 tokens → 0.0000¢  (FREE tier)
-#   Groq   llama-3.1-8b-instant      → 526 tokens → 0.0030¢  total
-#
-# MAB implication: OpenRouter FREE cost creates a strong cost-first signal.
-# The 16,723ms latency (8× Groq) is the counter-penalty on sla-aware policy.
-# Phase 4.1 price multipliers will simulate dynamic pricing surges on top.
+# Hyper-inflated for the 37-Minute High-Impact Portfolio Demo
+# Formula: $/1k tokens / 1000 * 100 = cents/token
 # ---------------------------------------------------------------------------
 
-# Groq: Premium high-speed 70B (user base: 0.060 cents / 1000 tokens)
-GROQ_INPUT_CENTS_PER_TOKEN:  float = 0.000060
-GROQ_OUTPUT_CENTS_PER_TOKEN: float = 0.000060
+# Reference mapping for the demo orchestration (Unit: $/1k tokens)
+PROVIDER_COST_MULTIPLIERS = {
+    "openrouter": (0.00, 0.00),     # The "Free Tier" Bait
+    "groq":       (0.02, 0.05),     # Standard Production
+    "fallback":   (2.00, 4.00)      # The Financial Bleed (SambaNova)
+}
 
-# OpenRouter: (user base: 0.004 cents / 1000 tokens)
-# Given it a tiny base cost so dynamic multipliers have an effect.
-OR_INPUT_CENTS_PER_TOKEN:  float = 0.000004
-OR_OUTPUT_CENTS_PER_TOKEN: float = 0.000004
+# Values below are in USD Cents per Token
 
-# Fallback: The 8B Speed Demon (user base: 0.015 cents / 1000 tokens)
-FALLBACK_INPUT_CENTS_PER_TOKEN:  float = 0.000015
-FALLBACK_OUTPUT_CENTS_PER_TOKEN: float = 0.000015
+# Groq: Standard Production ($0.02 - $0.05 / 1k tokens)
+GROQ_INPUT_CENTS_PER_TOKEN:  float = 0.0020
+GROQ_OUTPUT_CENTS_PER_TOKEN: float = 0.0050
+
+# OpenRouter: The "Free Tier" Bait ($0.00 / 1k tokens)
+OR_INPUT_CENTS_PER_TOKEN:  float = 0.0000
+OR_OUTPUT_CENTS_PER_TOKEN: float = 0.0000
+
+# Fallback: The Financial Bleed ($2.00 - $4.00 / 1k tokens)
+FALLBACK_INPUT_CENTS_PER_TOKEN:  float = 0.2000
+FALLBACK_OUTPUT_CENTS_PER_TOKEN: float = 0.4000
 
 
 def calculate_cost_cents(
