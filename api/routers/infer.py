@@ -153,7 +153,19 @@ async def infer(
         redis=redis,
     )
 
-    # --- Step 7: Return response to client -----------------------------------
+    # --- Steps 8–12: Fire-and-forget Celery tasks (Must trigger BEFORE raising 503) ---
+    _fire_post_response_tasks(
+        request_id=request_id,
+        provider_name=provider_name,
+        provider_response=provider_response,
+        prompt=body.prompt,
+        prompt_hash=prompt_hash,
+        client_key=client_key,
+        quality_score=1.0,  # Updated by safety task if sampled
+        policy=body.policy or "latency-first",
+    )
+
+    # --- Step 7: Handle Error Responses --------------------------------------
     if provider_response.error_flag:
         _fire_circuit_failure(provider_name, redis)
         from fastapi import HTTPException
@@ -170,18 +182,6 @@ async def infer(
         asyncio.ensure_future(record_success(provider_name, redis))
     except Exception as e:
         logger.debug("Circuit success record error (non-critical): %s", e)
-
-    # --- Steps 8–12: Fire-and-forget Celery tasks ---------------------------
-    _fire_post_response_tasks(
-        request_id=request_id,
-        provider_name=provider_name,
-        provider_response=provider_response,
-        prompt=body.prompt,
-        prompt_hash=prompt_hash,
-        client_key=client_key,
-        quality_score=1.0,  # Updated by safety task if sampled
-        policy=body.policy or "latency-first",
-    )
 
     return InferResponse(
         output_text=provider_response.output_text or "",
