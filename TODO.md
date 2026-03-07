@@ -344,7 +344,7 @@
 
 ---
 
-## PHASE 8 — Security Hardening & Production Readiness
+## PHASE 8 — Security Hardening
 
 ### 8.1 Security
 - [ ] Add `slowapi` or custom Redis-backed rate limiter to the FastAPI middleware stack
@@ -352,13 +352,8 @@
 - [ ] Add request ID (`UUID`) header injection in middleware for all responses
 - [ ] Verify no provider API keys are ever included in `inference_log` Postgres rows or Langfuse traces
 
-### 8.2 Configuration for Production
-- [ ] Update `.env.example` with Upstash Redis URL and Neon Postgres URL examples
-- [ ] Add `ENVIRONMENT` env var (`dev` | `prod`)
-- [ ] When `ENVIRONMENT=prod`: disable chaos endpoints, enforce stricter rate limits
-- [ ] Document Upstash and Neon free-tier limits in `Findings.md`
 
-### 8.3 Final Documentation
+### 8.2 Final Documentation
 - [ ] Update `README.md` with: architecture diagram (text-based), all env vars, docker compose commands, k6 commands
 - [ ] Ensure `Findings.md` is up to date with all benchmark results and tradeoff decisions
 - [ ] Cross-check every implementation decision against `tradeoffs-info.md` for compliance
