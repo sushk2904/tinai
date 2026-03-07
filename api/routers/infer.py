@@ -47,10 +47,10 @@ settings = get_settings()
 # ---------------------------------------------------------------------------
 
 class InferRequest(BaseModel):
-    prompt:   str  = Field(..., min_length=1, max_length=32_000, description="The user prompt.")
-    model:    str  = Field("", description="Optional provider-specific model override.")
-    policy:   str  = Field("sla-aware", description="Routing policy: sla-aware | latency-first | cost-first")
-    provider: str  = Field("", description="[DEV ONLY] Force a specific provider, bypassing MAB. e.g. 'groq'")
+    prompt:   str  = Field(..., min_length=1, max_length=100_000, description="The user prompt.")
+    model:    str  = Field("", max_length=100, description="Optional provider-specific model override.")
+    policy:   str  = Field("sla-aware", max_length=50, description="Routing policy: sla-aware | latency-first | cost-first")
+    provider: str  = Field("", max_length=50, description="[DEV ONLY] Force a specific provider, bypassing MAB. e.g. 'groq'")
 
 
 class InferResponse(BaseModel):
