@@ -143,28 +143,43 @@ app = FastAPI(
 
 
 # ===========================================================================
-# Middleware — Request ID injection
-# Phase 8.1: every response carries a unique request ID for distributed tracing
-# (Langfuse / Arize traces are keyed on this ID).
+# Middleware — Security & Tracing
 # ===========================================================================
+
+# 1. CORS Lockdown (Middleware)
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
+)
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next) -> Response:
+    """
+    Injects standard security headers to protect against common web vulnerabilities.
+    """
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    # HSTS: 1 year (only if using HTTPS, but good practice to include)
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 @app.middleware("http")
 async def inject_request_id(request: Request, call_next) -> Response:
     """
     Injects a UUID request ID into every request/response cycle.
-
-    The ID is:
-      • Stored on request.state.request_id for use by route handlers
-        and Celery task payloads (links the async task back to the request).
-      • Returned as the `X-Request-ID` response header for client-side tracing.
-
-    Reads `X-Request-ID` from incoming headers first — if the caller (e.g., a
-    load balancer or k6 script) sets one, we propagate it rather than override.
+    Phase 8.1: Parity between sync path and background tasks.
     """
     request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
     request.state.request_id = request_id
 
     response = await call_next(request)
+    # Ensure X-Request-ID is present in the final response
     response.headers["X-Request-ID"] = request_id
     return response
 
