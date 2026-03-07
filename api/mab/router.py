@@ -50,6 +50,7 @@ _POLICY_MULTIPLIERS: dict[str, dict[str, float]] = {
     "latency-first":  {"groq": 3.0,  "openrouter": 0.3, "fallback": 0.1},
     "cost-first":     {"groq": 0.3,  "openrouter": 3.0, "fallback": 0.5},
     "sla-aware":      {"groq": 1.0,  "openrouter": 1.0, "fallback": 1.0},
+    "quality-first":   {"groq": 0.8,  "openrouter": 3.0, "fallback": 1.0},
 }
 
 
