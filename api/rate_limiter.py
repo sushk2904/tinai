@@ -1,28 +1,8 @@
-"""
-api/rate_limiter.py — Fixed-Window Rate Limiter (Phase 2.2)
-
-Implements a per-client fixed-window counter using Redis INCR + EXPIRE.
-
-Why fixed-window (not token bucket):
-  • Token bucket needs two Redis round-trips and floating-point state.
-  • Fixed-window needs one atomic INCR — O(1) and fits in the hot path.
-  • The burst edge-case (2× throughput at window boundaries) is acceptable
-    for this system; Phase 8.1 can graduate to a sliding-window Lua script.
-
-Implementation — atomic Lua script:
-  We use a single Lua script executed via Redis EVAL. This is critical:
-  if we split INCR and EXPIRE into two round-trips, a process crash between
-  them could leave a key with no TTL that grows forever. The Lua script
-  executes atomically — either both succeed or neither does.
-
-Redis key:  ratelimit:token:{client_key}  (DB 0)
-TTL:        rate_limit_window_seconds (default 60s)
-Value:      integer counter of requests in current window
-Threshold:  rate_limit_requests (default 100 req/window)
-
-Called in the sync request loop — must be O(1) and non-blocking.
-"""
-
+# ---------------------------------------------------------
+# SECURITY: SLIDING-WINDOW RATE LIMITER CONFIGURATION
+# Engineered for 1M+ Daily Requests (11.5 RPS avg, 500 RPS burst)
+# ---------------------------------------------------------
+import time
 from redis.asyncio import Redis
 from fastapi import HTTPException, status
 
@@ -32,67 +12,78 @@ from api.redis_keys import key_rate_limit
 settings = get_settings()
 
 # ---------------------------------------------------------------------------
-# Lua script — atomically INCR the counter and set TTL only on first request.
+# Lua script — Sliding-Window Counter (Mathematical Approximation)
 #
-# KEYS[1]  = the rate-limit key for this client
-# ARGV[1]  = window TTL in seconds
+# Formula: Count = CurrentCount + (PreviousCount * (WindowSize - Overlap) / WindowSize)
 #
-# Returns the current count after increment.
+# KEYS[1]  = the base rate-limit key for this client (perf:v2:ratelimit:{client_key})
+# ARGV[1]  = current timestamp (float seconds)
+# ARGV[2]  = window TTL in seconds
 #
-# Why `redis.call('TTL', KEYS[1]) == -1`:
-#   TTL returns -1 when the key exists but has no expiry.
-#   We only set EXPIRE when there is no TTL — this prevents resetting
-#   the window on every request (which would give infinite capacity).
-#   On the very first request in a window the key does not exist yet,
-#   so INCR creates it with no TTL, then we immediately set EXPIRE.
+# Returns the weighted count (float).
 # ---------------------------------------------------------------------------
-_RATE_LIMIT_LUA = """
-local current = redis.call('INCR', KEYS[1])
-if current == 1 then
-    redis.call('EXPIRE', KEYS[1], ARGV[1])
+_SLIDING_WINDOW_LUA = """
+local now = tonumber(ARGV[1])
+local window_sec = tonumber(ARGV[2])
+local current_bucket = math.floor(now / window_sec)
+local prev_bucket = current_bucket - 1
+
+local current_key = KEYS[1] .. ":" .. current_bucket
+local prev_key = KEYS[1] .. ":" .. prev_bucket
+
+-- Increment current bucket
+local current_count = redis.call('INCR', current_key)
+if current_count == 1 then
+    redis.call('EXPIRE', current_key, window_sec * 2)
 end
-return current
+
+-- Fetch previous bucket
+local prev_count = tonumber(redis.call('GET', prev_key) or 0)
+
+-- Calculate overlap weight
+local weight = (window_sec - (now % window_sec)) / window_sec
+local total = current_count + (prev_count * weight)
+
+return tostring(total)
 """
 
 
 async def check_rate_limit(client_key: str, redis: Redis) -> None:
     """
-    Enforce the fixed-window rate limit for `client_key`.
+    Enforce a sliding-window rate limit for `client_key`.
 
-    Reads `ratelimit:token:{client_key}` from Redis DB 0 and increments it
-    atomically. Raises HTTP 429 if the count exceeds the configured threshold.
+    Uses the mathematical approximation formula:
+    Count = requests_in_current_fixed_window +
+            (requests_in_previous_fixed_window * portion_of_previous_window_overlap)
 
-    Args:
-        client_key: SHA-256 derived key from auth.verify_api_key().
-        redis:      The shared Redis client from get_redis() dependency.
-
-    Raises:
-        HTTP 429 TOO MANY REQUESTS — with `Retry-After` header set to the
-        number of seconds remaining in the current window.
-
-    Called from:
-        api/routers/infer.py — step 2 of the sync request loop (Phase 2.6).
+    This prevents the "burst at boundary" issue of fixed windows while
+    maintaining O(1) Redis performance.
     """
-    rkey = key_rate_limit(client_key)
+    base_key = f"ratelimit:v2:{client_key}"
+    now = time.time()
 
-    # Execute the Lua script: single round-trip, fully atomic.
-    count = await redis.eval(
-        _RATE_LIMIT_LUA,
-        1,                                          # numkeys
-        rkey,                                       # KEYS[1]
-        str(settings.rate_limit_window_seconds),    # ARGV[1]
+    # Execute the Lua script
+    weighted_count_str = await redis.eval(
+        _SLIDING_WINDOW_LUA,
+        1,
+        base_key,
+        str(now),
+        str(settings.rate_limit_window_seconds),
     )
+    
+    count = float(weighted_count_str)
 
     if count > settings.rate_limit_requests:
-        # Fetch remaining TTL so the client knows when to retry.
-        ttl = await redis.ttl(rkey)
-        retry_after = max(ttl, 1)  # never return 0 or negative
+        # For sliding window, we approximate retry-after as the time until
+        # the current count would drop below the limit. Simplest is to wait
+        # until the start of the next window.
+        retry_after = settings.rate_limit_window_seconds - (int(now) % settings.rate_limit_window_seconds)
 
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=(
                 f"Rate limit exceeded: {settings.rate_limit_requests} requests "
-                f"per {settings.rate_limit_window_seconds}s window."
+                f"per {settings.rate_limit_window_seconds}s sliding window."
             ),
             headers={"Retry-After": str(retry_after)},
         )
