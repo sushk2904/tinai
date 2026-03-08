@@ -34,6 +34,7 @@ import logging
 import os
 
 import httpx
+import asyncpg
 
 from workers.celery_app import celery_app
 
@@ -46,6 +47,7 @@ _JUDGE_ENDPOINT     = "https://openrouter.ai/api/v1/chat/completions"
 _LANGFUSE_SK        = os.environ.get("LANGFUSE_SECRET_KEY", "").strip('"')
 _LANGFUSE_PK        = os.environ.get("LANGFUSE_PUBLIC_KEY", "").strip('"')
 _LANGFUSE_HOST      = os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com").strip('"')
+_DATABASE_URL      = os.environ.get("DATABASE_URL", "").replace("postgresql+asyncpg://", "postgresql://")
 
 _JUDGE_SYSTEM = (
     "You are a technical content quality evaluator. "
@@ -166,6 +168,19 @@ def run_quality_eval(
     latency_ms:   int,
     cost_cents:   float,
 ) -> None:
+    async def _update_db_quality(req_id: str, score: float):
+        """Update the inference_logs row with the real quality score."""
+        if not _DATABASE_URL:
+             return
+        try:
+            conn = await asyncpg.connect(_DATABASE_URL)
+            await conn.execute(
+                "UPDATE inference_logs SET quality_score = $1 WHERE request_id = $2",
+                score, req_id
+            )
+            await conn.close()
+        except Exception as e:
+            logger.warning("Failed to update log quality for %s: %s", req_id, e)
     """
     LLM-as-judge quality evaluation + MAB weight update.
 
@@ -194,6 +209,9 @@ def run_quality_eval(
 
         # Step 2: Push to Langfuse
         _push_langfuse_score(request_id, quality, provider, model)
+
+        # Update the log row for dashboard visibility
+        asyncio.run(_update_db_quality(request_id, quality))
 
         # Step 3: Chain into MAB weight update with REAL quality score
         from workers.tasks.telemetry import update_mab_weights
