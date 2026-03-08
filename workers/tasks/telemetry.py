@@ -56,8 +56,8 @@ def log_inference_telemetry(self, payload: dict) -> None:
                 """
                 INSERT INTO inference_logs
                     (request_id, provider, model, policy, latency_ms,
-                     token_count, cost_cents, error_flag, prompt_hash, client_key)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                     token_count, cost_cents, error_flag, prompt_hash, client_key, quality_score)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
                 """,
                 payload.get("request_id"),
                 payload.get("provider"),
@@ -69,6 +69,7 @@ def log_inference_telemetry(self, payload: dict) -> None:
                 payload.get("error_flag", False),
                 payload.get("prompt_hash"),
                 payload.get("client_key"),
+                payload.get("quality_score", 1.0),
             )
         finally:
             await conn.close()
