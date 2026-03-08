@@ -100,6 +100,11 @@ class Settings(BaseSettings):
         description="Shared secret checked against x-api-key header on all /v1/* routes",
     )
 
+    allowed_origins: list[str] = Field(
+        ["http://localhost:8501", "http://127.0.0.1:8501"],
+        description="List of origins allowed to make cross-site requests to the API",
+    )
+
     # -------------------------------------------------------------------------
     # Runtime behaviour flags
     # -------------------------------------------------------------------------
@@ -149,8 +154,8 @@ class Settings(BaseSettings):
     # `rate_limit_requests` tokens are allowed per `rate_limit_window_seconds`
     # window per client key. Enforced by api/rate_limiter.py via Redis INCR.
     # -------------------------------------------------------------------------
-    rate_limit_requests:       int   = Field(100,  ge=1,   description="Max requests per window")
-    rate_limit_window_seconds: int   = Field(60,   ge=1,   description="Rate-limit window (s)")
+    rate_limit_requests:       int   = Field(500,  ge=1,   description="Max requests per window")
+    rate_limit_window_seconds: int   = Field(1,    ge=1,   description="Rate-limit window (s)")
 
     # -------------------------------------------------------------------------
     # Sampling rates — fraction of requests that trigger background evaluation
