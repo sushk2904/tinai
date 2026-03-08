@@ -251,6 +251,7 @@ def _fire_post_response_tasks(
             "error_flag":  provider_response.error_flag,
             "prompt_hash": prompt_hash,
             "client_key":  client_key,
+            "quality_score": quality_score,
         }
         log_inference_telemetry.delay(payload)
 
