@@ -10,6 +10,7 @@ def compute_pareto_front(df: pd.DataFrame) -> pd.DataFrame:
     agg_df = df.groupby(['provider', 'policy']).agg(
         avg_latency=('latency_ms', 'mean'),
         avg_cost=('cost_cents', 'mean'),
+        avg_quality=('quality_score', 'mean'),
         error_rate=('error_flag', 'mean')
     ).reset_index()
 
