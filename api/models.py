@@ -65,6 +65,11 @@ class InferenceLog(Base):
     cost_cents = Column(Numeric(10, 4), nullable=False)
 
     error_flag = Column(Boolean, default=False, nullable=False)
+    
+    # AI Quality Score: 0.0 (Poor) → 1.0 (Excellent)
+    # Calculated asynchronously by LLM-as-judge task in Phase 3.3.
+    # defaults to 1.0 during insertion; updated via quality.py if sampled.
+    quality_score = Column(Numeric(5, 4), nullable=False, default=1.0)
 
     # Raw LLM output — nullable because error responses have no output text.
     output_text = Column(Text, nullable=True)
