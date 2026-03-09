@@ -61,7 +61,41 @@ def get_status_color(val, is_failure=True):
         if val > 60: return "#ffd700"
         return "#ff4b4b"
 
-st.title("🛡️ TINAI Control Center")
+# --- TOP-RIGHT GITHUB LINK ---
+st.markdown(
+    """
+    <style>
+    .github-link {
+        position: absolute;
+        top: -45px;
+        right: 0px;
+        text-decoration: none;
+        color: #c5c6c7;
+        transition: color 0.3s ease, transform 0.3s ease;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    .github-link:hover {
+        color: #45a29e;
+        transform: translateY(-2px);
+    }
+    </style>
+    <a href="https://github.com/sushk2904/tinai" target="_blank" class="github-link">
+        <span>Codes Here</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/>
+        </svg>
+    </a>
+    """,
+    unsafe_allow_html=True
+)
+
+st.title("TINAI Control Center")
 st.markdown("### Multi-Armed Bandit & Chaos Engineering Observability")
 st.write("")
 
@@ -148,7 +182,7 @@ pareto_df = compute_pareto_front(filtered_df) if not filtered_df.empty else pd.D
 # 2. MAIN CHARTS (Right Cell)
 right_cell = cols[1].container(border=True)
 with right_cell:
-    tab1, tab2 = st.tabs(["Cost vs Latency (Pareto Front)", "Latency Over Time"])
+    tab1, tab2, tab3 = st.tabs(["Cost vs Latency (Pareto Front)", "Latency Over Time", "Cost Distribution"])
     
     with tab1:
         st.write("#### Cost vs. Latency Efficiency")
@@ -179,7 +213,7 @@ with right_cell:
             st.info("Select providers and policies to calculate efficiency.")
 
     with tab2:
-        st.write("#### Inference Latency 1 Min Time (Including Gray Failures)")
+        st.write("#### Inference Latency Tracking")
         if not filtered_df.empty:
             chart = (
                 alt.Chart(filtered_df)
@@ -195,9 +229,30 @@ with right_cell:
             )
             st.altair_chart(chart, use_container_width=True)
         else:
-            st.info("Select providers and policies to view tracking data.")
+            st.info("No tracking data available.")
 
 
+
+    with tab3:
+        if not filtered_df.empty:
+            st.write("#### Cost Distribution(Economics Over Time)")
+            cost_chart = (
+                alt.Chart(filtered_df)
+                .mark_area(opacity=0.3, color="#f63366")
+                .encode(
+                    x=alt.X('created_at:T', title="Timeline"),
+                    y=alt.Y('cost_cents:Q', title="Cost (cents)"),
+                    color=alt.Color('provider:N'),
+                    tooltip=['provider', 'cost_cents', 'policy']
+                )
+                .properties(height=300)
+            )
+            st.altair_chart(cost_chart, use_container_width=True)
+            
+            # Technical status removed per user request
+            pass
+        else:
+            st.info("No financial data available.")
 
 
 total_reqs = len(filtered_df)
