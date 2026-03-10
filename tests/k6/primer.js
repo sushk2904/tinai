@@ -14,7 +14,7 @@ export const options = {
     },
 };
 
-const POLICIES = ["latency-first", "cost-first", "sla-aware"];
+const POLICIES = ["latency-first", "cost-first", "sla-aware", "quality-first"];
 const PROMPTS = [
     "What is the capital of France? One word answer.",
     "Explain quantum computing in one short sentence.",
